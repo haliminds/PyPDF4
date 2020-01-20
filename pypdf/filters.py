@@ -675,13 +675,24 @@ class CCITTFaxCodec(object):    # pylint: disable=too-few-public-methods
 
     @staticmethod
     def decode(data, decodeParms=None, height=0):
+        k = 1
+        width = 0
         if decodeParms:
-            if decodeParms.get("/K", 1) == -1:
-                CCITTgroup = 4
-            else:
-                CCITTgroup = 3
-
-        width = decodeParms["/Columns"]
+            try:
+                k = decodeParms.get('/K', 1)
+                width = decodeParms.get('/Columns', 0)
+            except AttributeError:  # ArrayObject
+                for decodeParm in decodeParms:
+                    if '/Columns' in decodeParm:
+                        width = decodeParm['/Columns']
+                    if '/K' in decodeParm:
+                        k = decodeParm['/K']
+                        break
+        if k == -1:
+            CCITTgroup = 4
+        else:
+            CCITTgroup = 3        
+        
         imgSize = len(data)
         tiffHeaderStruct = '<' + '2s' + 'h' + 'l' + 'h' + 'hhll' * 8 + 'h'
         tiffHeader = struct.pack(
