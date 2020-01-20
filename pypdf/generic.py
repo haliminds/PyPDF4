@@ -36,6 +36,9 @@ import math
 import re
 import uuid
 import warnings
+import numpy as np
+import cv2
+import Image
 from io import BytesIO
 
 from pypdf.utils import *
@@ -1913,6 +1916,53 @@ class PageObject(DictionaryObject):
             if not isinstance(content, ContentStream):
                 content = ContentStream(content, self.pdf)
             self[NameObject("/Contents")] = content.flateEncode()
+
+    def extractImage(self):
+        """
+        For non-vectorial PDF, extract the single image which composed the page
+        This works only for signle-image page (for a while, this will be refined 
+        in the future). If no Image, return None
+
+        :return: a opencv image object (or None if no image)
+        """    
+        if '/XObject' in self['/Resources']:
+            xObject = self['/Resources']['/XObject'].getObject()
+
+            # parse all object but return the first image
+            for obj in xObject:
+                if xObject[obj]['/Subtype'] == '/Image':
+                    size = (xObject[obj]['/Width'], xObject[obj]['/Height'])
+                    data = xObject[obj].getData()
+
+                    if xObject[obj]['/ColorSpace'] == '/DeviceRGB':
+                        mode = "RGB"
+                        cv2_mode = cv2.IMREAD_COLOR 
+                    else:
+                        mode = "P"
+                        cv2_mode = cv2.IMREAD_GRAYSCALE
+
+                    if '/Filter' in xObject[obj]:
+                        if '/FlateDecode' in xObject[obj]['/Filter']:
+                            img = Image.frombytes(mode, size, data)
+                            return np.array(img) 
+                        elif '/DCTDecode' in xObject[obj]['/Filter']:
+                            nparr = np.frombuffer(data, np.uint8)
+                            # convert numpy to cv2
+                            return cv2.imdecode(nparr, cv2_mode)                                
+                        elif '/JPXDecode' in xObject[obj]['/Filter']:
+                            nparr = np.frombuffer(data, np.uint8)
+                            # convert numpy to cv2
+                            return cv2.imdecode(nparr, cv2_mode)                                
+                        elif '/CCITTFaxDecode' in xObject[obj]['/Filter']:
+                            nparr = np.frombuffer(data, np.uint8)
+                            # convert numpy to cv2
+                            return cv2.imdecode(nparr, cv2_mode)                                
+
+                    else:
+                        img = Image.frombytes(mode, size, data)
+                        return np.array(img)         
+        return None
+        
 
     def extractText(self):
         """
