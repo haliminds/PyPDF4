@@ -50,7 +50,7 @@ setup(
             ],
         packages=["pypdf"],
         install_requires=[
-          'Pillow==6.2.2',
+          'Pillow==6.1.0',
           'opencv-python==4.1.2.30',
           'numpy==1.18.0'
       ],        
